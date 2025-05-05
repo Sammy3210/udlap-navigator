@@ -29,7 +29,7 @@ public class Main {
         String end = scanner.next().toUpperCase();
 
         Dijkstra.Result result = Dijkstra.shortestPath(graph, start, end);
-        System.out.println("Ruta óptima: " + String.join(" → ", result.getPath()));
+        System.out.println("Ruta óptima: " + String.join(" -> ", result.getPath()));
         System.out.println("Tiempo estimado: " + result.getTotalCost() + " minutos");
     }
 }
