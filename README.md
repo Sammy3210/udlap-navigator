@@ -69,3 +69,15 @@ udlap-navigator/
 │   └── Main.java
 ├── README.md
 ```
+
+## 📊 Diagramas UML
+
+### Diagrama de Casos de Uso
+Este diagrama muestra cómo el usuario interactúa con el sistema.
+
+![Casos de Uso](doc/use-case.png)
+
+### Diagrama de Secuencia
+Este diagrama representa el flujo de interacción entre el usuario y el sistema.
+
+![Secuencia](doc/sequence.png)
