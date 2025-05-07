@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sistema de Navegación UDLAP</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      background-color: #fefefe;
+      color: #333;
+    }
+    header {
+      background-color: #6a1b9a;
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+    .controls {
+      background-color: #fff;
+      padding: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      border-bottom: 2px solid #ddd;
+    }
+    .container {
+      display: flex;
+      justify-content: center;
+      padding: 20px;
+    }
+    .results {
+      text-align: center;
+      font-size: 18px;
+      margin-top: 10px;
+      padding: 0 20px;
+    }
+    svg {
+      background-color: #fff;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      display: block;
+      margin: 0 auto;
+    }
+    .legend {
+      max-width: 300px;
+      padding: 10px;
+    }
+    circle {
+      fill: white;
+      stroke: #6a1b9a;
+      stroke-width: 3;
+    }
+    text.label {
+      font-size: 12px;
+      fill: black;
+    }
+    text {
+      fill: #4a148c;
+    }
+    .edge {
+      stroke: #ffa726;
+      stroke-width: 6;
+      opacity: 0.6;
+    }
+    .highlight {
+      stroke: #4caf50;
+      stroke-width: 8;
+      opacity: 1;
+    }
+    footer {
+      text-align: center;
+      background-color: #6a1b9a;
+      color: white;
+      padding: 10px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Sistema de Navegación UDLAP</h1>
+    <p>Descubre la ruta más corta entre dos puntos de la universidad</p>
+  </header>
+
+  <section class="controls">
+    <label for="start">Punto de inicio:</label>
+    <select id="start"></select>
+
+    <label for="end">Destino:</label>
+    <select id="end"></select>
+
+    <button onclick="findShortestPath()">Mostrar Ruta</button>
+  </section>
+
+  <div class="container">
+    <svg id="map" width="1000" height="700"></svg>
+  </div>
+
+  <div class="results" id="results"></div>
+
+  <footer>
+    <p>Proyecto final</p>
+  </footer>
+
+  <script>
+    const graph = {
+      A: { B: 500, C: 450 },
+      B: { A: 500, F: 400 },
+      C: { A: 450, D: 350 },
+      D: { C: 350, E: 300 },
+      E: { D: 300, H: 0 },
+      F: { B: 400, G: 300 },
+      G: { F: 300, H: 150, M: 300 },
+      H: { G: 150, I: 250 },
+      I: { H: 250, J: 150 },
+      J: { I: 150, K: 300, O: 280 },
+      K: { J: 300, L: 100 },
+      L: { K: 100, N: 40 },
+      M: { G: 300, O: 500 },
+      N: { L: 40, O: 130 },
+      O: { J: 280, M: 500, N: 130 }
+    };
+
+    const tiempos = {
+      'A-B': 6, 'B-A': 6, 'A-C': 6, 'C-A': 6,
+      'B-F': 5, 'F-B': 5,
+      'C-D': 5, 'D-C': 5,
+      'D-E': 4, 'E-D': 4,
+      'F-G': 4, 'G-F': 4,
+      'G-H': 2, 'H-G': 2,
+      'H-I': 3, 'I-H': 3,
+      'I-J': 2, 'J-I': 2,
+      'J-K': 4, 'K-J': 4,
+      'K-L': 2, 'L-K': 2,
+      'L-N': 1, 'N-L': 1,
+      'G-M': 4, 'M-G': 4,
+      'M-O': 7, 'O-M': 7,
+      'O-J': 4, 'J-O': 4,
+      'O-N': 2, 'N-O': 2
+    };
+
+    const positions = {
+      A: [150, 250], B: [250, 350], C: [250, 150], D: [350, 150], E: [400, 250],
+      F: [350, 450], G: [450, 450], H: [500, 350], I: [600, 350],
+      J: [700, 350], K: [800, 250], L: [800, 350], M: [450, 550],
+      N: [800, 450], O: [700, 450]
+    };
+
+    const labels = {
+      A: 'Humanidades', B: 'Ágora', C: 'Hacienda', D: 'Negocios', E: 'Auditorio',
+      F: 'Ingeniería', G: 'Biblioteca', H: 'Cafetería', I: 'Servicios Médicos',
+      J: 'Salud', K: 'Alberca', L: 'Gimnasio', M: 'Sorteo', N: 'Pista', O: 'Templo del dolor'
+    };
+
+    const svg = document.getElementById("map");
+
+    function drawGraph() {
+      svg.innerHTML = '';
+      for (const node in graph) {
+        for (const neighbor in graph[node]) {
+          if (node < neighbor) {
+            drawLine(node, neighbor, 'edge');
+          }
+        }
+      }
+      for (const node in positions) {
+        drawNode(node);
+      }
+    }
+
+    function drawLine(a, b, cssClass) {
+      const [x1, y1] = positions[a];
+      const [x2, y2] = positions[b];
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("x1", x1);
+      line.setAttribute("y1", y1);
+      line.setAttribute("x2", x2);
+      line.setAttribute("y2", y2);
+      line.setAttribute("class", cssClass);
+      svg.appendChild(line);
+    }
+
+    function drawNode(id) {
+      const [x, y] = positions[id];
+
+      const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      circle.setAttribute("cx", x);
+      circle.setAttribute("cy", y);
+      circle.setAttribute("r", 20);
+      svg.appendChild(circle);
+
+      const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      label.setAttribute("x", x);
+      label.setAttribute("y", y + 6);
+      label.setAttribute("text-anchor", "middle");
+      label.setAttribute("fill", "#4a148c");
+      label.setAttribute("font-size", "16");
+      label.textContent = id;
+      svg.appendChild(label);
+
+      const name = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      name.setAttribute("x", x);
+      name.setAttribute("y", y + 35);
+      name.setAttribute("text-anchor", "middle");
+      name.setAttribute("class", "label");
+      name.textContent = labels[id];
+      svg.appendChild(name);
+    }
+
+    function dijkstra(start, end) {
+      const distances = {};
+      const prev = {};
+      const queue = new Set(Object.keys(graph));
+
+      for (const node in graph) {
+        distances[node] = Infinity;
+        prev[node] = null;
+      }
+      distances[start] = 0;
+
+      while (queue.size > 0) {
+        let u = [...queue].reduce((minNode, node) => distances[node] < distances[minNode] ? node : minNode);
+        queue.delete(u);
+
+        if (u === end) break;
+
+        for (const neighbor in graph[u]) {
+          const alt = distances[u] + graph[u][neighbor];
+          if (alt < distances[neighbor]) {
+            distances[neighbor] = alt;
+            prev[neighbor] = u;
+          }
+        }
+      }
+
+      const path = [];
+      let current = end;
+      while (current) {
+        path.unshift(current);
+        current = prev[current];
+      }
+      return { path, distance: distances[end] };
+    }
+
+    function findShortestPath() {
+      drawGraph();
+      const start = document.getElementById("start").value;
+      const end = document.getElementById("end").value;
+      const result = dijkstra(start, end);
+      const path = result.path;
+      const distance = result.distance;
+
+      for (let i = 0; i < path.length - 1; i++) {
+        drawLine(path[i], path[i + 1], 'highlight');
+      }
+
+      let tiempoTotal = 0;
+      for (let i = 0; i < path.length - 1; i++) {
+        const key = `${path[i]}-${path[i + 1]}`;
+        tiempoTotal += tiempos[key] || 0;
+      }
+
+      const names = path.map(id => labels[id]);
+      const resultDiv = document.getElementById("results");
+      resultDiv.innerHTML = `
+        <p>La ruta más corta de <strong>${labels[start]}</strong> a <strong>${labels[end]}</strong> es la siguiente:</p>
+        <p>${names.join(" → ")}</p>
+        <p>Con una distancia recorrida de: <strong>${distance} metros</strong></p>
+        <p>Tiempo estimado de recorrido: <strong>${tiempoTotal} minutos</strong></p>
+      `;
+    }
+
+    function populateSelectors() {
+      const startSel = document.getElementById("start");
+      const endSel = document.getElementById("end");
+
+      for (const node in labels) {
+        const opt1 = new Option(labels[node], node);
+        const opt2 = new Option(labels[node], node);
+        startSel.add(opt1);
+        endSel.add(opt2);
+      }
+    }
+
+    populateSelectors();
+    drawGraph();
+  </script>
+</body>
+</html>
